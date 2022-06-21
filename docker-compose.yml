@@ -4,7 +4,7 @@ services:
     restart: on-failure:3 # if your app is unable to boot, it will try to restart three times
     build: ./main # Do not touch this
     ports: # if you would like to move the app to a different port, change the one on the left to whichever number you want
-      - 3522:3000
+      - 3519:3000
     volumes: # Do not touch this part or the command section
       - ./:/app
     command: python main/app.py

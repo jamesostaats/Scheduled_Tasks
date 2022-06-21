@@ -13,7 +13,7 @@ import io
 from base64 import b64encode
 from apscheduler.schedulers.background import BackgroundScheduler  # automatic scheduling function
 
-from tools.sched_functions import sched_test, sched_test_cron
+from tools.sched_functions import sched_marketo_loop
 
 '''
 
@@ -23,8 +23,8 @@ CORE APP SETUP BELOW - YOU CAN MODIFY BUT DO NOT DELETE
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(sched_test, trigger='interval', seconds=1000)
-scheduler.add_job(sched_test_cron, trigger='cron',day_of_week='mon-fri', hour=2)
+scheduler.add_job(sched_marketo_loop, trigger='interval', seconds=100)
+#scheduler.add_job(sched_test_cron, trigger='cron',day_of_week='mon-fri', hour=2)
 scheduler.start()
 
 #Change the theme to another bootstrap theme if you'd like
@@ -32,7 +32,7 @@ scheduler.start()
 app = dash.Dash(__name__,external_stylesheets=[dbc.themes.LUX])
 
 # Title your app here
-app.title = "Territory Geography View"
+app.title = "Scheduled Tasks ECA - AAC"
 
 # Leave dev tools on - this will let you know if something is wrong on the page
 # If you are using scheduled jobs, change debug to False both here and at the end of the page
@@ -55,123 +55,11 @@ postgres_str = 'postgresql://{username}:{password}@{ipaddress}:{port}/{dbname}'.
 connection = create_engine(postgres_str)
 
 
-df=pd.read_sql('''SELECT * FROM nast_usa_geo''',connection)
-
-df['NAST_Rep']=df['Rep_NAST'].str[:8]
-df.loc[df.NAST_Rep.str.lower().str.find('empty')>=0,'fullname']='Empty Territory'
-df['Info']=df['fullname']+' - '+df['Territory Code']
-
-#Drop Down Creation
-drop_options_df=df[['Territory Code','Info']].copy()
-
-drop_options_df=drop_options_df.drop_duplicates()
-drop_options_df=drop_options_df.sort_values(by='Territory Code')
-
-
-drop_options_df['label']=drop_options_df['Info']
-drop_options_df['value']=drop_options_df['Territory Code']
-
-drop_options_df=drop_options_df[['label','value']]
-
-drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-drop_options=drop_options_df.to_dict('records')
-
-#Dropdown Figure
-dropdown=dcc.Dropdown(id='SelectTerr',
-                      options=drop_options,
-                      multi=False,
-                      #value='VT107N',
-                      style={'width':"100%"})
-
-
-
-#Drop Down Creation 2
-drop_options_df=df[['SizeSegment']].copy()
-
-drop_options_df=drop_options_df.drop_duplicates()
-drop_options_df=drop_options_df.sort_values(by='SizeSegment')
-
-
-drop_options_df['label']=drop_options_df['SizeSegment']
-drop_options_df['value']=drop_options_df['SizeSegment']
-
-drop_options_df=drop_options_df[['label','value']]
-
-drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-drop_options=drop_options_df.to_dict('records')
-
-#Dropdown Figure 2
-dropdown_2=dcc.Dropdown(id='Size',
-                      options=drop_options,
-                      multi=False,
-                      #value='VT107N',
-                      style={'width':"100%"})
-
-
-#Drop Down Creation 3
-drop_options_df=df[['District Code']].copy()
-
-drop_options_df=drop_options_df.drop_duplicates()
-drop_options_df=drop_options_df.sort_values(by='District Code')
-
-
-drop_options_df['label']=drop_options_df['District Code']
-drop_options_df['value']=drop_options_df['District Code']
-
-drop_options_df=drop_options_df[['label','value']]
-
-drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-drop_options=drop_options_df.to_dict('records')
-
-#Dropdown Figure 3
-dropdown_3=dcc.Dropdown(id='District',
-                      options=drop_options,
-                      multi=False,
-                      #value='VT107N',
-                      style={'width':"100%"})
-
-#Drop Down Creation 4
-drop_options_df=df[['Region Code']].copy()
-
-drop_options_df=drop_options_df.drop_duplicates()
-drop_options_df=drop_options_df.sort_values(by='Region Code')
-
-
-drop_options_df['label']=drop_options_df['Region Code']
-drop_options_df['value']=drop_options_df['Region Code']
-
-drop_options_df=drop_options_df[['label','value']]
-
-drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-drop_options=drop_options_df.to_dict('records')
-
-#Dropdown Figure 4
-dropdown_4=dcc.Dropdown(id='Region',
-                      options=drop_options,
-                      multi=False,
-                      #value='VT107N',
-                      style={'width':"100%"})
-
+df=pd.read_sql('''SELECT * FROM schedule_task_status''',connection)
 
 
 #Message Table
-message='Use filters above to view specific alignments'
+message='Current Status of Ongoing Tasks:'
 messdf=pd.DataFrame(columns=[message])
 
 dash_messagetable=dash_table.DataTable(id='dash_messtable',
@@ -180,28 +68,29 @@ columns=[{"name":i,"id":i} for i in messdf.columns],
 style_cell={'textAlign':'center','font_size':'16px'},
 style_header={'textAlign':'center','color':'white','background-color':'rgb(30, 30, 30)','border':'1px solid black'})
 
-df[['Latitude', 'Longitude']]=df[['Latitude', 'Longitude']].replace(np.NaN,'Nothing')
-df.loc[(df['Latitude']!='Nothing')&(df['Longitude']!='Nothing')]
+#Message Table
 
-df[['Latitude', 'Longitude']]=df[['Latitude', 'Longitude']].astype('float')
+dash_status_table=dash_table.DataTable(id='dash_statustable',
+data=df.to_dict('records'),
+columns=[{"name":i,"id":i} for i in df.columns],
+style_data={'height':'auto','whiteSpace': 'normal'},
+style_data_conditional=([{
+            'if': {'row_index': 'odd'},
+            'backgroundColor': 'rgb(220, 220, 220)',
+            },
+            {'if': {'column_id':'Status','filter_query':'{Status}=Active'},
+            'color': 'rgb(0, 128, 0)'}
+            ,
+            {'if': {'column_id':'Status','filter_query':'{Status}=Failed'},
+            'color': 'rgb(184, 0, 0, 0.8)'}
+            ,
+            {'if': {'column_id':'Status','filter_query':'{Status}=Failed_Notified'},
+            'color': 'rgb(85, 85, 255)'}
+            
+            ]),
+style_cell={'textAlign':'center','font_size':'16px'},
+style_header={'textAlign':'center','color':'white','background-color':'rgb(30, 30, 30)','border':'1px solid black'})
 
-df_simple=df[['Latitude','Longitude','Zip']]
-df_simple['Info']='USA Zip Code'
-df_simple=df_simple.drop_duplicates()
-
-#Scatterplot Figure
-plottitle='USA Zip Code Alignment'
-fig=px.scatter_mapbox(df_simple,zoom=2,lat='Latitude',lon='Longitude',color_continuous_scale=px.colors.cyclical.IceFire,color='Info',hover_name='Zip',hover_data=['Info'],mapbox_style='carto-positron')
-fig=fig.update_layout(title=plottitle)
-
-#html download
-buffer = io.StringIO()
-
-#figs_to_html=dict(values=[fig,table])
-fig.write_html(buffer)
-
-html_bytes = buffer.getvalue().encode()
-encoded = b64encode(html_bytes).decode()
 
 app.layout = html.Div([
     # Navigation bar is stored here
@@ -213,209 +102,29 @@ app.layout = html.Div([
 
             html.Div(className='row',children=[
             
-            html.Div(children=[
-            html.Div(children=[html.H5('Input Zip Code:'),dcc.Input(id='Zip',placeholder="USA 5-Digit Zip")],style={'textAlign':'left','color':'black','padding':'5px','margin':'50px 50px 50px 50px'})#,className='six columns'
-            ]),
-            html.Div(children=[
-            html.Div(children=[html.H5('Select Size Segment:'),dropdown_2],style={'textAlign':'left','color':'black','padding':'5px','margin':'50px 50px 50px 50px'})#,className='six columns'
-            ]),
-            html.Div(children=[
-            html.Div(children=[html.H5('Select Territory Code:'),dropdown],style={'textAlign':'left','color':'black','padding':'5px','margin':'50px 50px 50px 50px'})#,className='six columns'
-            ]),
-            html.Div(children=[
-            html.Div(children=[html.H5('Select District:'),dropdown_3],style={'textAlign':'left','color':'black','padding':'5px','margin':'50px 50px 50px 50px'})#,className='six columns'
-            ]),
-            html.Div(children=[
-            html.Div(children=[html.H5('Select Region:'),dropdown_4],style={'textAlign':'left','color':'black','padding':'5px','margin':'50px 50px 50px 50px'})#,className='six columns'
-            ])
             ]),
             html.Div(dash_messagetable,style={'textAlign':'center','color':'brown','background-color':'grey','padding':'5px','border':'1px solid black','margin':'50px 50px 50px 50px'}),
-            dcc.Graph(id='Account Map',figure=fig),
-            html.Div(html.A(
-                html.Button("Download HTML Map File"), 
-                id="download",
-                href="data:text/html;base64," + encoded,
-                download="territory_geography.html"
-            ),style={'textAlign':'center','color':'brown','background-color':'grey','padding':'5px','border':'1px solid black','margin':'50px 50px 50px 50px'})
+            html.Div(dash_status_table,style={'textAlign':'center','color':'brown','background-color':'grey','padding':'5px','border':'1px solid black','margin':'50px 50px 50px 50px'}),
+            html.Button('Refresh', id='refresh-val', n_clicks=1,style={'textAlign':'center','background-color':'grey','padding':'5px','border':'1px solid black','margin':'50px 0px 50px 50px'})
             
             ])
 
-@app.callback([Output(component_id='Account Map',component_property='figure'),
-    Output(component_id='SelectTerr',component_property='options'),
-    Output(component_id='Size',component_property='options'),
-    Output(component_id='District',component_property='options'),
-    Output(component_id='Region',component_property='options'),
-    Output(component_id='download',component_property='href')],
-    Output(component_id='dash_messtable',component_property='columns')
+@app.callback([
+    #Output(component_id='dash_statustable',component_property='columns'),
+    Output(component_id='dash_statustable',component_property='data')]
     ,
-    [Input(component_id='Zip',component_property='value'),
-    Input(component_id='SelectTerr',component_property='value'),
-    Input(component_id='Size',component_property='value'),
-    Input(component_id='District',component_property='value'),
-    Input(component_id='Region',component_property='value'),
+    [Input(component_id='refresh-val',component_property='n_clicks')
     ])
 
-def update_values(zipcode, territory, size, district, region):
+def update_values(refresh_click):
 
-    df=pd.read_sql('''SELECT * FROM nast_usa_geo''',connection)
+    if refresh_click>0:
+        df=pd.read_sql('''SELECT * FROM schedule_task_status''',connection)
+        data=df.to_dict('records'),
+        columns=[{"name":i,"id":i} for i in df.columns]
+    refresh_click=0
 
-    df['NAST_Rep']=df['Rep_NAST'].str[:8]
-    df.loc[df.NAST_Rep.str.lower().str.find('empty')>=0,'fullname']='Empty Territory'
-    df['Info']=df['fullname']+' - '+df['Territory Code']
-
-    if zipcode == None:
-        zipcode=''
-    if territory == None:
-        territory=''
-    if size == None:
-        size=''
-    if district == None:
-        district=''
-    if region == None:
-        region=''
-
-    message='Use filters above to view specific alignments'
-    messdf=pd.DataFrame(columns=[message])
-    mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-
-    
-    if len(size)>0:
-        df=df.loc[df['SizeSegment']==size]
-        message='Viewing Size: '+size
-        messdf=pd.DataFrame(columns=[message])
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-
-    if len(region)>0:
-        df=df.loc[df['Region Code']==region]
-        message='Viewing Region: '+region
-        messdf=pd.DataFrame(columns=[message])
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-    if len(district)>0:
-        df=df.loc[df['District Code']==district]
-        message='Viewing District: '+district
-        messdf=pd.DataFrame(columns=[message])
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-    if len(territory)>0:
-        df=df.loc[df['Territory Code']==territory]
-        message='Viewing Territory: '+territory
-        messdf=pd.DataFrame(columns=[message])
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-    if (len(zipcode)==5):
-        df=df.loc[df['Zip']==zipcode]
-        message='Viewing Zip: '+zipcode
-        messdf=pd.DataFrame(columns=[message])
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-    df[['Latitude', 'Longitude','Zip','Info']]=df[['Latitude', 'Longitude','Zip','Info']].replace(np.NaN,'Nothing')
-    df.loc[(df['Info']!='Nothing')&(df['Zip']!='Nothing')&(df['Latitude']!='Nothing')&(df['Longitude']!='Nothing')]
-
-    df[['Latitude', 'Longitude']]=df[['Latitude', 'Longitude']].astype('float')
-
-    df_simple=df[['Latitude','Longitude','Zip']]
-    df_simple['Info']='USA Zip Code'
-    df_simple=df_simple.drop_duplicates()
-
-    #Drop Down Creation
-    drop_options_df=df[['Territory Code','Info']].copy()
-
-    drop_options_df=drop_options_df.drop_duplicates()
-    drop_options_df=drop_options_df.sort_values(by='Territory Code')
-
-    drop_options_df['label']=drop_options_df['Info']
-    drop_options_df['value']=drop_options_df['Territory Code']
-
-    drop_options_df=drop_options_df[['label','value']]
-
-    drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-    drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-    drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-    drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-    terr_options=drop_options_df.to_dict('records')
-
-    #Drop Down Creation 2
-    drop_options_df=df[['SizeSegment']].copy()
-
-    drop_options_df=drop_options_df.drop_duplicates()
-    drop_options_df=drop_options_df.sort_values(by='SizeSegment')
-
-    drop_options_df['label']=drop_options_df['SizeSegment']
-    drop_options_df['value']=drop_options_df['SizeSegment']
-
-    drop_options_df=drop_options_df[['label','value']]
-
-    drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-    drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-    drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-    drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-    size_options=drop_options_df.to_dict('records')
-
-    #Drop Down Creation 3
-    drop_options_df=df[['District Code']].copy()
-
-    drop_options_df=drop_options_df.drop_duplicates()
-    drop_options_df=drop_options_df.sort_values(by='District Code')
-
-    drop_options_df['label']=drop_options_df['District Code']
-    drop_options_df['value']=drop_options_df['District Code']
-
-    drop_options_df=drop_options_df[['label','value']]
-
-    drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-    drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-    drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-    drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-    district_options=drop_options_df.to_dict('records')
-
-    #Drop Down Creation 4
-    drop_options_df=df[['Region Code']].copy()
-
-    drop_options_df=drop_options_df.drop_duplicates()
-    drop_options_df=drop_options_df.sort_values(by='Region Code')
-
-    drop_options_df['label']=drop_options_df['Region Code']
-    drop_options_df['value']=drop_options_df['Region Code']
-
-    drop_options_df=drop_options_df[['label','value']]
-
-    drop_options_df['label']=drop_options_df['label'].replace(np.NaN,'Nothing')
-    drop_options_df['value']=drop_options_df['value'].replace(np.NaN,'Nothing')
-    drop_options_df=drop_options_df.loc[drop_options_df['label']!='Nothing']
-    drop_options_df=drop_options_df.loc[drop_options_df['value']!='Nothing']
-
-    region_options=drop_options_df.to_dict('records')
-
-    df=df[['Latitude','Longitude','Zip','Info']]
-
-    
-    #Figure
-    figure=px.scatter_mapbox(df,zoom=2,lat='Latitude',lon='Longitude',color_continuous_scale=px.colors.cyclical.IceFire,color='Info',hover_name='Zip',hover_data=['Info'],mapbox_style='carto-positron')
-    figure=figure.update_layout(title=plottitle)
-
-
-    if (len(zipcode)<5)&(len(territory)==0)&(len(size)==0)&(len(district)==0)&(len(region)==0):
-        figure=px.scatter_mapbox(df_simple,zoom=2,lat='Latitude',lon='Longitude',color_continuous_scale=px.colors.cyclical.IceFire,color='Info',hover_name='Zip',hover_data=['Info'],mapbox_style='carto-positron')
-        figure=figure.update_layout(title=plottitle)
-        message=['Use filters above to view specific alignments']
-        messdf=pd.DataFrame(columns=message)
-        mess_columns=[{"name":i,"id":i} for i in messdf.columns]
-
-    #html download
-    buffer = io.StringIO()
-    figure.write_html(buffer)
-    html_bytes = buffer.getvalue().encode()
-    encoded = b64encode(html_bytes).decode()
-    href="data:text/html;base64," + encoded
-
-    
-    return figure, terr_options, size_options, district_options, region_options,href,mess_columns
+    return data
 
 
 
